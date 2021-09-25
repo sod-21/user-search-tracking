@@ -1,68 +1,156 @@
 <?php
 
-namespace SodTrack;
+namespace memberpress\sod;
 
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
+use \WP_CLI;
+
+if (!defined('ABSPATH')) {
+    exit;
 }
 
-class SodTrack {
-    private static $instance = null;
-    public $track;
-    public $widget;
+final class Init
+{
+    /**
+     * nonce
+     */
+    const NONCE_FOR_DATA = "Memberpress #@#$@#####$@#!SADF";
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->include_files();
-        $this->track = new Track();
-        $this->widget = new Admin_Widget();
-
-        add_action('admin_menu', array( $this, 'add_admin_page') );
+        $this->add_actions();
     }
 
-    private function include_files() {
-        require_once SOD_TRACK_PATH . '/includes/functions.php';
-		require_once SOD_TRACK_PATH . '/includes/track.php';
-        require_once SOD_TRACK_PATH . '/includes/admin_widget.php';
-	}    
+    public function include_files()
+    {
 
-    public static function getInstance() {
-        if (self::$instance == null) {
-            self::$instance = new SodTrack();
+        require_once MEMBERPRESS_SOD_CHA_PATH . '/includes/helper.php';
+
+        if (is_admin()) {
+            require_once MEMBERPRESS_SOD_CHA_PATH . '/includes/admin.php';
+
+            new Admin();
+        }
+    }
+
+    /**
+     * add actions
+     */
+    public function add_actions()
+    {
+        add_action('cli_init', array($this, 'add_cli'));
+        add_action('wp_enqueue_scripts', array($this, 'add_scripts_styles'));
+
+        //wp ajax to get the data from API
+        add_action('wp_ajax_memberpress_sod_data', array($this, 'ajax_data'));
+        add_action('wp_ajax_nopriv_memberpress_sod_data', array($this, 'ajax_data'));
+
+        //add_shortcode
+        add_shortcode('memberpress_sod_challenge', array($this, 'get_data_shortcode'));
+    }
+
+    /**
+     * add styles and scripts
+     * register datatable and custom js, css
+     */
+    public function add_scripts_styles()
+    {
+        wp_register_script('memberpress-sod-datatable', 'https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/js/jquery.dataTables.min.js', array('jquery'), MEMBERPRESS_SOD_CHA_VERSION, true);
+
+        wp_register_script('memberpress-sod-js', MEMBERPRESS_SOD_CHA_URL . "/assets/js/script.js", array('jquery', 'memberpress-sod-datatable'), MEMBERPRESS_SOD_CHA_VERSION, true);
+
+        wp_register_style(
+            'memberpress-sod-datatble',
+            "//cdn.datatables.net/1.11.3/css/jquery.dataTables.min.css",
+            null,
+            MEMBERPRESS_SOD_CHA_VERSION
+        );
+
+        wp_register_style(
+            'memberpress-sod-style',
+            MEMBERPRESS_SOD_CHA_URL . "/assets/css/style.css",
+            null,
+            MEMBERPRESS_SOD_CHA_VERSION
+        );
+
+        wp_localize_script('memberpress-sod-js', 'memberpresssodajax', array(
+            'ajaxurl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce(self::NONCE_FOR_DATA)
+        ));
+    }
+
+    /**
+     * register the command 
+     * 
+     */
+    public function add_cli()
+    {
+        WP_CLI::add_command('memberpress sod challenge refresh', array($this, 'refresh_data'));
+    }
+
+    /**
+     * refreshing data
+     * 
+     */
+    public function refresh_data()
+    {
+        WP_CLI::line('refresh the data form API' . Helper::API);
+        WP_CLI::line('Starting...');
+
+        $data = Helper::get_data(true);
+
+        if (!empty($data)) {
+            WP_CLI::line(__('refreshed successfully.', 'memberpress-sod-cha'));
+        } else {
+            WP_CLI::line(WP_CLI::colorize('%r Error:%n' . __('Please check the api key or internet.', 'memberpress-sod-cha')));
         }
 
-        return self::$instance;
+        WP_CLI::line('Good Bye');
     }
 
-    public function add_admin_page() {
-        add_submenu_page('index.php', __('Search Tracking', 'sod-track-search'), __('Search Tracking', 'sod-track-search'), null, 'sod-track-search', array( $this,  'options_page'));
-        add_options_page(__('Search Tracking', 'sod-track-search'), __('Search Tracking', 'sod-track-search'), 'manage_options', 'sod-track-search', array( $this,  'options_page'));
-    }
+    /**
+     * ajax 
+     */
+    public function ajax_data()
+    {
 
-    public function options_page() {
+        if (!wp_verify_nonce($_POST["nonce"], self::NONCE_FOR_DATA)) {
+            die('error');
+        } else {
+            $data = Helper::get_data();
 
-        $table = new TrackList();
-      
-        ?>
-        <div class="wrap">
-        <style type="text/css">
-            #wpse-list-table-form table > tfoot {
-                display: none;
+            if (!empty($data)) {
+                echo json_encode($data);
             }
-        </style>
-        <h2><?php _e('Search Tracking Settings', 'search-meter') ?></h2>
-        
-        <?php
-        echo '<form id="wpse-list-table-form" method="post">';
+        }
+        exit;
+    }
 
-        $page  = filter_input( INPUT_GET, 'page', FILTER_SANITIZE_STRIPPED );
-        $paged = filter_input( INPUT_GET, 'paged', FILTER_SANITIZE_NUMBER_INT );
-        
-        printf( '<input type="hidden" name="page" value="%s" />', $page );
-        printf( '<input type="hidden" name="paged" value="%d" />', $paged );
-        
-        $table->prepare_items(); // this will prepare the items AND process the bulk actions
-        $table->display();
-        
-        echo '</form>';
+    /**
+     * rendering the table
+     * 
+     */
+    public function get_data_shortcode($atts = array(), $content = null)
+    {
+
+        extract(
+            shortcode_atts(
+                array(
+                    'title' => '',
+                    'count' => '5'
+                ),
+                $atts
+            )
+        );
+
+        wp_enqueue_script('memberpress-sod-datatable');
+        wp_enqueue_script('memberpress-sod-js');
+        wp_enqueue_style('memberpress-sod-datatble');
+        wp_enqueue_style('memberpress-sod-style');
+
+        return "<div class='memberpress-sod-challenge loading'><h2>$title</h2><div class='table-wrapper' data-page-count='$count'>
+        <div class='lds-roller'><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div><table class='table'><thead><tr></tr></thead><tbody></tbody></table></div></div>";
     }
 }
+
+new Init();

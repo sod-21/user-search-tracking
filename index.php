@@ -1,35 +1,23 @@
 <?php
+
 /**
- * Plugin Name: Sod Track
+ * Plugin Name: Memberpress Coding Challenge 
  * Plugin URI:  
- * Description: Track User Search Queries
+ * Description: Memberpress Coding Challenge For Jerry Dai
  * Version:     1.0.0
- * Author:      SOD 
- * Text Domain: sod-track-search
+ * Author:      SOD
+ * Text Domain: memberpress-sod-cha
  *
  * @package 
  */
 
-define( 'SOD_TRACK_VERSION', '1.0.0' );
-define( 'SOD_TRACK_PATH', plugin_dir_path( __FILE__ ) );
-define( 'SOD_TRACK_URL', plugins_url( '', __FILE__ ) );
-define( 'SOD_TRACK_PLUGIN_BASE', plugin_basename( __FILE__ ) );
+define('MEMBERPRESS_SOD_CHA_VERSION', '1.0.0');
+define('MEMBERPRESS_SOD_CHA_PATH', plugin_dir_path(__FILE__));
+define('MEMBERPRESS_SOD_CHA_URL', plugins_url('', __FILE__));
 
-/**
- * Activate Plugin
- */
-function sod_track_activation() {
-	require_once SOD_TRACK_PATH . '/includes/activate.php';
-	new SodTrack\Activation();
-}
-register_activation_hook( __FILE__, 'sod_track_activation' );
-
-// Includes files
-require_once SOD_TRACK_PATH . '/includes/init.php';
-
-
-function sodtrack() {
-    return SodTrack\SodTrack::getInstance();
+function memberpress_sod_challenge()
+{
+	require_once MEMBERPRESS_SOD_CHA_PATH . '/includes/init.php';
 }
 
-sodtrack();
+memberpress_sod_challenge();

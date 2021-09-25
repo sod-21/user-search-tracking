@@ -1,0 +1,22 @@
+.memberpress-sod-header {
+    margin-left: -20px;
+}
+
+.memberpress-sod-header .header-content {
+    padding: 20px 20px;
+    background: #fff;
+    border-bottom: 2px solid #22d5e9;
+}
+
+.memberpress-sod-settings .em {
+    color: green;
+    max-width: 360px;
+    text-align: center;
+}
+
+.memberpress-sod-settings .em span {
+    display: inline-block;
+    width: 100%;    
+    overflow: hidden;
+    white-space: nowrap;
+}
